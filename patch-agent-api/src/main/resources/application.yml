@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: patch-agent
+  jackson:
+    property-naming-strategy: SNAKE_CASE   # Java camelCase -> JSON snake_case
+    default-property-inclusion: non_null
+
+server:
+  port: 5000
+
+# SSH connection settings  (mirrors config.yaml from the Python version)
+ssh:
+  username: patchuser
+  password: ""
+  private-key-path: ""           # e.g. ~/.ssh/patch_key  (leave blank if using password)
+  port: 22
+  connect-timeout: 15            # seconds
+  command-timeout: 30            # seconds
+
+# Patching behaviour
+patching:
+  round-robin-delay: 5.0         # default delay (seconds) between round-robin servers
+  batch-max-workers: 10          # max parallel SSH connections in batch phase
+  excel-path: "../servers_template.xlsx"   # relative to working directory
+  state-path: "../patch_state.json"        # relative to working directory
+
+logging:
+  level:
+    com.patchagent: INFO
+  file:
+    name: "../patch_agent.log"

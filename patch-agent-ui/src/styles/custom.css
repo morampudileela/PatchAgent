@@ -1,0 +1,166 @@
+:root {
+  --navy:   #1f3864;
+  --green:  #155724;
+  --red:    #721c24;
+  --yellow: #856404;
+  --bg:     #f4f6fb;
+  --card:   #ffffff;
+  --border: #dee2e6;
+  --log-bg: #0d1117;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Topbar */
+.topbar {
+  background: var(--navy);
+  color: #fff;
+  padding: .75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.topbar h1 {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+.badge-version {
+  background: rgba(255,255,255,.18);
+  padding: .2rem .55rem;
+  border-radius: 99px;
+  font-size: .75rem;
+}
+
+/* Cluster selector */
+.cluster-bar {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .75rem 1.25rem .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.cluster-bar label {
+  font-size: .85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #333;
+  margin: 0;
+}
+.cluster-select { max-width: 240px; font-size: .875rem; }
+
+/* Server table */
+.server-table-wrap { overflow-x: auto; }
+table.srv-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+table.srv-table th {
+  background: var(--navy);
+  color: #fff;
+  padding: .55rem .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+table.srv-table td {
+  padding: .45rem .75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+table.srv-table tr:hover td { background: #eef4ff; }
+table.srv-table tr.selected td { background: #d9e8ff; }
+
+.mode-badge {
+  font-size: .72rem;
+  padding: .2rem .5rem;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.mode-rr    { background: #dbeafe; color: #1e40af; }
+.mode-batch { background: #dcfce7; color: #166534; }
+
+.svc-chip {
+  display: inline-block;
+  background: #e9ecef;
+  color: #495057;
+  border-radius: 4px;
+  padding: .1rem .4rem;
+  font-size: .72rem;
+  margin: .1rem .1rem 0 0;
+  font-family: monospace;
+}
+
+/* Status dots */
+.status-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 3px;
+  flex-shrink: 0;
+}
+.status-running { background: #198754; box-shadow: 0 0 4px #198754aa; }
+.status-stopped { background: #dc3545; box-shadow: 0 0 4px #dc3545aa; }
+.status-error   { background: #fd7e14; }
+.status-unknown { background: #adb5bd; }
+.status-cell    { white-space: nowrap; }
+.status-footer  { font-size: .72rem; color: #6c757d; margin-top: .4rem; }
+
+/* Action bar */
+.action-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .85rem 1.1rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.action-bar label { font-weight: 600; margin: 0; font-size: .85rem; }
+.range-input {
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: .3rem .65rem;
+  font-size: .875rem;
+  width: 200px;
+}
+.range-input:focus { outline: none; border-color: var(--navy); }
+.btn-stop  { background: #dc3545; border: none; color: #fff; font-weight: 700; }
+.btn-start { background: #198754; border: none; color: #fff; font-weight: 700; }
+.btn-stop:hover  { background: #b02a37; color: #fff; }
+.btn-start:hover { background: #157347; color: #fff; }
+.sel-count { font-size: .8rem; color: #6c757d; }
+
+/* Log panel */
+.log-panel {
+  background: var(--log-bg);
+  color: #c9d1d9;
+  border-radius: 8px;
+  padding: .85rem 1rem;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: .82rem;
+  height: 320px;
+  overflow-y: auto;
+  line-height: 1.55;
+}
+.log-ok    { color: #3fb950; }
+.log-error { color: #f85149; }
+.log-warn  { color: #e3b341; }
+.log-info  { color: #79c0ff; }
+.log-ts    { color: #484f58; margin-right: .4rem; }
+.progress  { height: 8px; border-radius: 99px; }
+
+/* History */
+.hist-item {
+  font-size: .8rem;
+  border-bottom: 1px solid var(--border);
+  padding: .4rem 0;
+}
+.hist-item:last-child { border: none; }
