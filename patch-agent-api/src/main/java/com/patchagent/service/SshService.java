@@ -31,10 +31,21 @@ public class SshService {
     // ---------------------------------------------------------------------------
 
     /**
-     * Run a command on a remote host. Returns [exitCode, stdout, stderr].
+     * Run a command on a remote host using config-file credentials.
      */
     public CommandResult run(String host, String command) throws JSchException, IOException {
-        Session session = connect(host);
+        return run(host, command, null, null);
+    }
+
+    /**
+     * Run a command on a remote host, preferring the supplied session credentials
+     * over the config-file defaults.  Pass {@code null} for both to fall back to
+     * config.
+     */
+    public CommandResult run(String host, String command,
+                             String username, String password)
+            throws JSchException, IOException {
+        Session session = connect(host, username, password);
         try {
             return execute(session, command, props.getCommandTimeout() * 1000L);
         } finally {
@@ -43,15 +54,22 @@ public class SshService {
     }
 
     /**
-     * Check the live status of a service row.
-     * Returns "running", "stopped", "error", or "unknown".
+     * Check the live status of a service row using config-file credentials.
      */
     public String checkStatus(ServerRow row) {
+        return checkStatus(row, null, null);
+    }
+
+    /**
+     * Check the live status of a service row, preferring the supplied session
+     * credentials over the config-file defaults.
+     */
+    public String checkStatus(ServerRow row, String username, String password) {
         String statusCmd = row.getStatusCmd();
         if (statusCmd == null || statusCmd.isBlank()) return "unknown";
 
         try {
-            CommandResult result = run(row.getHost(), statusCmd);
+            CommandResult result = run(row.getHost(), statusCmd, username, password);
             return result.exitCode() == 0 ? "running" : "stopped";
         } catch (Exception e) {
             log.debug("Status check failed for {}: {}", row.getHost(), e.getMessage());
@@ -64,21 +82,35 @@ public class SshService {
     // ---------------------------------------------------------------------------
 
     Session connect(String host) throws JSchException {
+        return connect(host, null, null);
+    }
+
+    /**
+     * Open a JSch session. When {@code username}/{@code password} are non-blank they
+     * take priority over the values in {@link SshProperties} (config-file defaults).
+     * This allows per-request AD credentials to be used without touching the config.
+     */
+    Session connect(String host, String username, String password) throws JSchException {
         JSch jsch = new JSch();
 
-        // Key-based auth
+        // Effective username: session credential > config
+        String effectiveUser = (username != null && !username.isBlank())
+                ? username : props.getUsername();
+
+        Session session = jsch.getSession(effectiveUser, host, props.getPort());
+
+        // Key-based auth (config only — session credentials always use password)
         String keyPath = props.getPrivateKeyPath();
-        if (keyPath != null && !keyPath.isBlank()) {
+        if ((username == null || username.isBlank()) && keyPath != null && !keyPath.isBlank()) {
             String expanded = keyPath.replace("~", System.getProperty("user.home"));
             jsch.addIdentity(expanded);
         }
 
-        Session session = jsch.getSession(props.getUsername(), host, props.getPort());
-
-        // Password auth (used if no key configured)
-        String password = props.getPassword();
-        if (password != null && !password.isBlank()) {
-            session.setPassword(password);
+        // Effective password: session credential > config
+        String effectivePassword = (password != null && !password.isBlank())
+                ? password : props.getPassword();
+        if (effectivePassword != null && !effectivePassword.isBlank()) {
+            session.setPassword(effectivePassword);
         }
 
         // Disable strict host key checking (mirrors paramiko AutoAddPolicy)

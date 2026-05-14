@@ -1,16 +1,49 @@
 import { useState, useEffect, useCallback } from 'react'
-import { TopBar }       from './components/TopBar'
+import { TopBar }        from './components/TopBar'
 import { ClusterFilter } from './components/ClusterFilter'
-import { ServerTable }  from './components/ServerTable'
-import { ActionBar }    from './components/ActionBar'
-import { LogPanel }     from './components/LogPanel'
-import { HistoryPanel } from './components/HistoryPanel'
-import { useServers }   from './hooks/useServers'
-import { useJobStream } from './hooks/useJobStream'
+import { ServerTable }   from './components/ServerTable'
+import { ActionBar }     from './components/ActionBar'
+import { LogPanel }      from './components/LogPanel'
+import { HistoryPanel }  from './components/HistoryPanel'
+import { LoginPage }     from './components/LoginPage'
+import { useServers }    from './hooks/useServers'
+import { useJobStream }  from './hooks/useJobStream'
 import { useAutoRefresh } from './hooks/useAutoRefresh'
-import { api }          from './api/client'
+import { api }           from './api/client'
 
 export default function App() {
+
+  // ── Auth state ───────────────────────────────────────────────────
+  // null  = not yet checked  |  false = not logged in  |  object = { username, environment }
+  const [authUser, setAuthUser] = useState(null)
+
+  // On first mount: check if a valid session already exists
+  useEffect(() => {
+    api.me().then(data => {
+      if (data && data.username) {
+        setAuthUser({ username: data.username, environment: data.environment || 'nonprod' })
+      } else {
+        setAuthUser(false)
+      }
+    }).catch(() => setAuthUser(false))
+  }, [])
+
+  // Listen for 401 events dispatched by the API client
+  useEffect(() => {
+    function handle401() { setAuthUser(false) }
+    window.addEventListener('auth:expired', handle401)
+    return () => window.removeEventListener('auth:expired', handle401)
+  }, [])
+
+  function handleLogin(username, environment) {
+    setAuthUser({ username, environment: environment || 'nonprod' })
+  }
+
+  async function handleLogout() {
+    await api.logout()
+    setAuthUser(false)
+  }
+
   // ── Server inventory ─────────────────────────────────────────────
   const { allRows, clusters, reload } = useServers()
 
@@ -97,16 +130,35 @@ export default function App() {
 
   const { logLines, progress, startJob, clearLog } = useJobStream(onJobComplete)
 
-  // ── Bootstrap ────────────────────────────────────────────────────
+  // ── Bootstrap (only after auth confirmed) ────────────────────────
   useEffect(() => {
-    reload()
-    loadHistory()
-  }, [])
+    if (authUser) {
+      reload()
+      loadHistory()
+    }
+  }, [authUser])
 
-  // ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────
+
+  // Still probing session — blank screen to avoid flicker
+  if (authUser === null) return null
+
+  // Not authenticated — show login page
+  if (authUser === false) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  // Authenticated — show the main app
+  const { username, environment } = authUser
   return (
     <>
-      <TopBar rowCount={allRows.length} onReload={reload} />
+      <TopBar
+        rowCount={allRows.length}
+        onReload={reload}
+        username={username}
+        environment={environment}
+        onLogout={handleLogout}
+      />
 
       <div className="container-fluid py-3">
         <div className="row g-3">

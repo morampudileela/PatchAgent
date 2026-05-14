@@ -29,3 +29,29 @@ logging:
     com.patchagent: INFO
   file:
     name: "../patch_agent.log"
+
+# ─────────────────────────────────────────────────────────────
+#  Active Directory / LDAP Authentication
+# ─────────────────────────────────────────────────────────────
+#  Set environment to "nonprod" or "prod".
+#  required-group: full DN of the AD group the user must belong to.
+#    Leave blank to allow any valid AD user.
+#  recursive-group: true = resolve nested AD group membership via
+#    LDAP_MATCHING_RULE_IN_CHAIN (OID 1.2.840.113556.1.4.1941).
+
+ldap:
+  environment: nonprod             # nonprod | prod
+
+  nonprod:
+    server:          "ldap://nonprod-dc01.company.com:389"
+    domain:          "NONPROD"     # NTLM domain prefix  (DOMAIN\username)
+    base-dn:         "DC=nonprod,DC=company,DC=com"
+    required-group:  "CN=patch-admins,OU=Groups,DC=nonprod,DC=company,DC=com"
+    recursive-group: true
+
+  prod:
+    server:          "ldap://prod-dc01.company.com:389"
+    domain:          "PROD"
+    base-dn:         "DC=prod,DC=company,DC=com"
+    required-group:  "CN=patch-admins,OU=Groups,DC=prod,DC=company,DC=com"
+    recursive-group: true

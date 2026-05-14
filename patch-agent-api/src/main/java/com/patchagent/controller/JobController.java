@@ -4,6 +4,7 @@ import com.patchagent.model.*;
 import com.patchagent.service.JobExecutorService;
 import com.patchagent.service.ServerInventoryService;
 import com.patchagent.util.RowSelectionParser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,8 @@ public class JobController {
 
     // POST /api/job/start
     @PostMapping("/api/job/start")
-    public ResponseEntity<?> startJob(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> startJob(@RequestBody Map<String, Object> body,
+                                      HttpServletRequest request) {
         String action  = String.valueOf(body.getOrDefault("action", "stop")).toLowerCase();
         boolean dryRun = Boolean.TRUE.equals(body.get("dry_run"));
         String selStr  = String.valueOf(body.getOrDefault("selection", "*"));
@@ -48,8 +50,15 @@ public class JobController {
                 .body(Map.of("error", "action must be 'stop' or 'start'"));
         }
 
+        // Capture session credentials at request time (before the async thread starts)
+        SessionCredentials creds = AuthController.getSessionCredentials(request);
+        String username    = creds != null ? creds.getUsername()    : null;
+        String password    = creds != null ? creds.getPassword()    : null;
+        String environment = creds != null ? creds.getEnvironment() : null;
+
         try {
-            List<ServerRow> allRows = inventoryService.loadServers();
+            // Only consider rows that belong to the session environment
+            List<ServerRow> allRows = inventoryService.loadServers(environment);
             List<Integer> allIds = allRows.stream().map(ServerRow::getId).collect(Collectors.toList());
             List<Integer> selIds = rowSelectionParser.parse(selStr, allIds);
             Set<Integer> selSet  = new HashSet<>(selIds);
@@ -65,8 +74,8 @@ public class JobController {
             JobState job = new JobState(jobId, action, dryRun, selStr);
             jobs.put(jobId, job);
 
-            // Launch background job (async via @Async annotation)
-            jobExecutorService.runJob(job, selRows, action, dryRun);
+            // Launch background job — pass credentials captured above
+            jobExecutorService.runJob(job, selRows, action, dryRun, username, password);
 
             return ResponseEntity.ok(
                 Map.of("job_id", jobId, "server_count", selRows.size()));

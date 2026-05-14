@@ -1,0 +1,32 @@
+# macOS system files
+.DS_Store
+*/.DS_Store
+**/.DS_Store
+
+# Java/Maven build artifacts
+target/
+*.class
+
+# Runtime and log files
+*.log
+temp/
+bin/
+
+# IDE specific files
+.settings/
+.classpath
+.project
+.idea/
+*.iml
+
+# Dependency directories
+node_modules/
+node/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional: Build output
+dist/

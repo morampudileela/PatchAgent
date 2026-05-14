@@ -1,0 +1,50 @@
+# ─────────────────────────────────────────────────────────
+#  Linux Server Patching Agent — SSH Configuration
+# ─────────────────────────────────────────────────────────
+#  Edit the values below and keep this file secure.
+#  Never commit passwords to source control.
+
+ssh:
+  username: "your_username"
+  password: "your_password"      # Leave blank to use key-based auth
+  private_key_path: ""           # e.g. ~/.ssh/id_rsa  (used if password is blank)
+  port: 22
+  connect_timeout: 15            # seconds to wait when opening a connection
+  command_timeout: 30            # seconds to wait for a command to finish
+
+# ─────────────────────────────────────────────────────────
+#  Patching behaviour
+# ─────────────────────────────────────────────────────────
+patching:
+  round_robin_delay: 5           # seconds to pause between each round-robin server
+  batch_max_workers: 10          # max parallel threads used for batch-mode servers
+  log_file: "patch_agent.log"    # set to "" to disable file logging
+
+# ─────────────────────────────────────────────────────────
+#  Active Directory / LDAP Authentication
+# ─────────────────────────────────────────────────────────
+#  Set environment to "nonprod" or "prod" to choose which
+#  LDAP server block is used at runtime.
+#
+#  required_group: full DN of the AD group users must belong to.
+#    Set to "" to skip group membership check (any valid AD
+#    user can log in).
+#  recursive_group: true = use LDAP_MATCHING_RULE_IN_CHAIN so
+#    nested group membership is resolved automatically.
+
+ldap:
+  environment: nonprod            # "nonprod" | "prod"
+
+  nonprod:
+    server:         "ldap://nonprod-dc01.company.com:389"
+    domain:         "NONPROD"     # NTLM domain prefix  (DOMAIN\username)
+    base_dn:        "DC=nonprod,DC=company,DC=com"
+    required_group: "CN=patch-admins,OU=Groups,DC=nonprod,DC=company,DC=com"
+    recursive_group: true         # resolve nested AD group membership
+
+  prod:
+    server:         "ldap://prod-dc01.company.com:389"
+    domain:         "PROD"
+    base_dn:        "DC=prod,DC=company,DC=com"
+    required_group: "CN=patch-admins,OU=Groups,DC=prod,DC=company,DC=com"
+    recursive_group: true

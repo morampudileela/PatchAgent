@@ -1,0 +1,9 @@
+# Patch Agent — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+flask>=3.0         # Web UI server
+paramiko>=3.0      # SSH client
+openpyxl>=3.1      # Excel (.xlsx) reader/writer
+pyyaml>=6.0        # YAML config loader
+colorama>=0.4      # Coloured terminal output (used by patch_agent.py CLI)
+ldap3>=2.9         # Active Directory / LDAP authentication

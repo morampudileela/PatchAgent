@@ -21,6 +21,8 @@ public class ServerRow {
     private Double rrDelay;   // null = use config default
     private String group;
     private String notes;
+    /** "nonprod" or "prod" — matches the column added in v2.3 of the Excel template. */
+    private String environment;
 
     // ---------------------------------------------------------------- getters
 
@@ -36,6 +38,7 @@ public class ServerRow {
     public Double getRrDelay() { return rrDelay; }
     public String getGroup() { return group; }
     public String getNotes() { return notes; }
+    public String getEnvironment() { return environment; }
 
     // ---------------------------------------------------------------- setters
 
@@ -51,4 +54,5 @@ public class ServerRow {
     public void setRrDelay(Double rrDelay) { this.rrDelay = rrDelay; }
     public void setGroup(String group) { this.group = group; }
     public void setNotes(String notes) { this.notes = notes; }
+    public void setEnvironment(String environment) { this.environment = environment; }
 }

@@ -51,8 +51,19 @@ public class JobExecutorService {
 
     @Async("taskExecutor")
     public void runJob(JobState job, List<ServerRow> rows, String action, boolean dryRun) {
+        runJob(job, rows, action, dryRun, null, null);
+    }
+
+    /**
+     * Main entry point. {@code username} and {@code password} are the session
+     * credentials captured at request time; they are passed through to every
+     * SSH call so each job uses the credentials of the user who started it.
+     */
+    @Async("taskExecutor")
+    public void runJob(JobState job, List<ServerRow> rows, String action, boolean dryRun,
+                       String username, String password) {
         try {
-            executeJob(job, rows, action, dryRun);
+            executeJob(job, rows, action, dryRun, username, password);
         } catch (Exception e) {
             emit(job, "error", "Job crashed: " + e.getMessage());
             log.error("Job {} crashed", job.getJobId(), e);
@@ -65,7 +76,8 @@ public class JobExecutorService {
     // ---------------------------------------------------------------------------
 
     private void executeJob(JobState job, List<ServerRow> rows,
-                            String action, boolean dryRun) throws Exception {
+                            String action, boolean dryRun,
+                            String username, String password) throws Exception {
 
         // --- 1. Group rows by (cluster + host) ---
         Map<String, List<ServerRow>> serverGroups = new LinkedHashMap<>();
@@ -117,7 +129,7 @@ public class JobExecutorService {
                             .filter(r -> r.getStatusCmd() != null && !r.getStatusCmd().isBlank())
                             .findFirst().orElse(null);
                         if (chk != null) {
-                            String status = sshService.checkStatus(chk);
+                            String status = sshService.checkStatus(chk, username, password);
                             if ("stopped".equals(status)) {
                                 alreadyStopped.add(key);
                                 emit(job, "warn",
@@ -170,7 +182,7 @@ public class JobExecutorService {
                     String.format("  [%d/%d] %s / %s (%s)",
                         idx + 1, rrGroups.size(), cluster, sname, groupRows.get(0).getHost()));
 
-                List<JobResult> res = processServerGroup(groupRows, action, dryRun, job);
+                List<JobResult> res = processServerGroup(groupRows, action, dryRun, job, username, password);
                 res.forEach(job::addResult);
 
                 if ("stop".equals(action) && res.stream().allMatch(JobResult::isOk)) {
@@ -213,7 +225,7 @@ public class JobExecutorService {
                     try {
                         emit(job, "info",
                             String.format("  Starting %s / %s (%s) ...", cluster, sname, host));
-                        List<JobResult> res = processServerGroup(groupRows, action, dryRun, job);
+                        List<JobResult> res = processServerGroup(groupRows, action, dryRun, job, username, password);
                         synchronized (done) {
                             done[0]++;
                             emitProgress(job, done[0], totalServers);
@@ -252,7 +264,8 @@ public class JobExecutorService {
     // ---------------------------------------------------------------------------
 
     private List<JobResult> processServerGroup(List<ServerRow> groupRows, String action,
-                                               boolean dryRun, JobState job) {
+                                               boolean dryRun, JobState job,
+                                               String username, String password) {
         // Stop order: ascending ID; start order: descending ID
         List<ServerRow> ordered = new ArrayList<>(groupRows);
         if ("stop".equals(action)) {
@@ -263,12 +276,13 @@ public class JobExecutorService {
 
         List<JobResult> results = new ArrayList<>();
         for (ServerRow row : ordered) {
-            results.add(executeService(row, action, dryRun, job));
+            results.add(executeService(row, action, dryRun, job, username, password));
         }
         return results;
     }
 
-    private JobResult executeService(ServerRow row, String action, boolean dryRun, JobState job) {
+    private JobResult executeService(ServerRow row, String action, boolean dryRun, JobState job,
+                                     String username, String password) {
         String host    = row.getHost();
         String service = row.getService();
         int rowId      = row.getId();
@@ -287,7 +301,7 @@ public class JobExecutorService {
         // Pre-stop: skip if already stopped
         if ("stop".equals(action) && row.getStatusCmd() != null && !row.getStatusCmd().isBlank()) {
             try {
-                String status = sshService.checkStatus(row);
+                String status = sshService.checkStatus(row, username, password);
                 if ("stopped".equals(status)) {
                     emit(job, "warn",
                         String.format("%s  -- Already stopped, skipping", label));
@@ -300,7 +314,7 @@ public class JobExecutorService {
         }
 
         try {
-            SshService.CommandResult res = sshService.run(host, cmd);
+            SshService.CommandResult res = sshService.run(host, cmd, username, password);
             if (res.success()) {
                 emit(job, "ok",
                     String.format("%s  OK  %s", label,

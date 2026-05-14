@@ -56,6 +56,9 @@ public class ServerInventoryService {
         COL_MAP.put("tier",                        "group");
         COL_MAP.put("service group",               "group");
         COL_MAP.put("notes",                       "notes");
+        // optional: environment tag (nonprod / prod)
+        COL_MAP.put("environment",                 "environment");
+        COL_MAP.put("env",                         "environment");
     }
 
     private static final Set<String> REQUIRED =
@@ -71,6 +74,7 @@ public class ServerInventoryService {
     //  Public API
     // ---------------------------------------------------------------------------
 
+    /** Load all rows regardless of environment. */
     public List<ServerRow> loadServers() throws IOException {
         Path path = resolvePath(props.getExcelPath());
         if (!Files.exists(path)) {
@@ -82,6 +86,21 @@ public class ServerInventoryService {
             Sheet sheet = findDataSheet(wb);
             return parseSheet(sheet);
         }
+    }
+
+    /**
+     * Load rows filtered to the given environment ("nonprod" or "prod").
+     * Rows whose environment column is blank are included in every environment
+     * for backwards-compatibility with Excel files that predate this column.
+     */
+    public List<ServerRow> loadServers(String environment) throws IOException {
+        List<ServerRow> all = loadServers();
+        if (environment == null || environment.isBlank()) return all;
+        return all.stream()
+                  .filter(r -> r.getEnvironment() == null
+                            || r.getEnvironment().isBlank()
+                            || r.getEnvironment().equalsIgnoreCase(environment))
+                  .toList();
     }
 
     public List<String> loadClusters() throws IOException {
@@ -167,6 +186,7 @@ public class ServerInventoryService {
         row.setStatusCmd(orDefault(rec.get("statusCmd"), ""));
         row.setGroup(orDefault(rec.get("group"), ""));
         row.setNotes(orDefault(rec.get("notes"), ""));
+        row.setEnvironment(orDefault(rec.get("environment"), ""));
 
         // Per-server RR delay
         String rawDelay = rec.get("rrDelay");
