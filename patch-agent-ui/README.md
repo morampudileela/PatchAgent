@@ -61,6 +61,21 @@ npm run preview    # serves dist/ locally on http://localhost:4173
 
 ---
 
+## Authentication flow
+
+The UI implements a full session-based login flow backed by Active Directory:
+
+1. On load, `App.jsx` calls `GET /api/auth/me` to check for an existing session.
+2. If no session exists (or a `401` is received on any API call), the app renders `LoginPage` instead of the main dashboard.
+3. `LoginPage` presents an **Environment** dropdown (`Non-Prod` / `Prod`), username, and password fields.
+4. On successful login the server returns `{ username, environment }`. The app stores both in state and renders the main dashboard.
+5. The active environment is shown as a persistent colour-coded badge in `TopBar` (green = Non-Prod, red = Prod).
+6. The **Sign out** button calls `POST /api/auth/logout`, which destroys the server-side session, then returns to the login page.
+
+> The browser never holds AD credentials. Only a `JSESSIONID` session cookie is stored, which the server invalidates after 8 hours.
+
+---
+
 ## Project Structure
 
 ```
@@ -70,17 +85,18 @@ patch-agent-ui/
 ├── vite.config.js               Dev server + /api proxy config
 └── src/
     ├── main.jsx                 React root — mounts <App />, imports Bootstrap
-    ├── App.jsx                  Root component — all shared state lives here
+    ├── App.jsx                  Root component — auth state + all shared state
     ├── styles/
     │   └── custom.css           CSS variables, table styles, status dots, log panel
     ├── api/
-    │   └── client.js            Fetch wrappers for all /api/* endpoints
+    │   └── client.js            Fetch wrappers for all /api/* endpoints + auth
     ├── hooks/
     │   ├── useServers.js        Fetches server inventory from /api/servers
     │   ├── useJobStream.js      Manages job start + SSE EventSource lifecycle
     │   └── useAutoRefresh.js    setInterval wrapper with start/stop control
     └── components/
-        ├── TopBar.jsx           Header bar with title, version badge, Reload button
+        ├── LoginPage.jsx        Full-page AD login form with environment dropdown
+        ├── TopBar.jsx           Header — title, environment badge, username, sign-out
         ├── ClusterFilter.jsx    Cluster dropdown + visible row count
         ├── ServerTable.jsx      <table> with select-all checkbox, sticky header
         ├── ServerRow.jsx        Single <tr> — checkbox, status dot, mode badge
@@ -97,12 +113,27 @@ All shared state lives in `App.jsx` and flows down as props:
 
 | State | Type | Description |
 |-------|------|-------------|
-| `allRows` | `ServerRow[]` | Full inventory from `/api/servers` |
-| `clusters` | `string[]` | Distinct cluster names |
-| `activeCluster` | `string` | Selected cluster filter (`"All"` or cluster name) |
+| `authUser` | `null \| false \| { username, environment }` | `null` = probing session, `false` = not logged in, object = authenticated |
+| `allRows` | `ServerRow[]` | Inventory from `/api/servers` — pre-filtered to session environment |
+| `clusters` | `string[]` | Distinct cluster names for the active environment |
+| `activeCluster` | `string` | Selected cluster filter (`"All"` or a cluster name) |
 | `selectedIds` | `Set<number>` | Row IDs currently selected for job execution |
 | `rowStatuses` | `{ [id]: string }` | Live status cache — `"running"` / `"stopped"` / `"error"` / `"unknown"` |
 | `sessions` | `PatchSession[]` | Recent job history from `/api/history` |
+
+---
+
+## API client (`src/api/client.js`)
+
+All fetch calls include `credentials: 'same-origin'` and an `X-Requested-With` header so the session cookie is sent automatically. Any `401` response on an `/api/*` endpoint dispatches a custom `auth:expired` window event, which `App.jsx` listens for to redirect back to the login page without requiring each call site to handle auth.
+
+Auth calls:
+
+```js
+api.login(username, password, environment)  // POST /api/auth/login
+api.logout()                                // POST /api/auth/logout
+api.me()                                    // GET  /api/auth/me
+```
 
 ---
 
@@ -139,12 +170,18 @@ Custom classes (`.status-dot`, `.mode-badge`, `.log-panel`, etc.) are in `src/st
 **`npm install` fails**  
 Make sure you are running Node 20+. Check with `node -v`.
 
-**UI loads but API calls fail (`net::ERR_CONNECTION_REFUSED`)**  
-The Spring Boot backend is not running. Start it first:
+**Login page never appears / blank screen on load**  
+Open the browser console. If `GET /api/auth/me` returns a network error, the Spring Boot backend is not running. Start it first:
 ```bash
 cd ../patch-agent-api
 mvn spring-boot:run
 ```
+
+**UI loads but API calls fail (`net::ERR_CONNECTION_REFUSED`)**  
+Same cause — the Spring Boot backend is not running on port 5000.
+
+**Login fails with "Unable to contact authentication server"**  
+The backend cannot reach the LDAP server configured in `application.yml`. Check network connectivity to the AD domain controller.
 
 **Changes not reflecting in the browser**  
 Vite hot-reload should update automatically. If it doesn't, try a hard refresh

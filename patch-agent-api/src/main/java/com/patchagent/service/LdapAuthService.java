@@ -21,7 +21,7 @@ import java.util.Hashtable;
  *
  * <p>Strategy:
  * <ol>
- *   <li>Perform an NTLM bind with {@code DOMAIN\username} + password to
+ *   <li>Perform an NTLM bind with {@code DOMAIN/username} + password to
  *       verify credentials are valid.</li>
  *   <li>If {@code required-group} is non-empty, search for the user with
  *       a {@code memberOf:1.2.840.113556.1.4.1941:=} filter (recursive
@@ -64,10 +64,10 @@ public class LdapAuthService {
             ctx = bindAsUser(cfg.getServer(), bindDn, password);
         } catch (AuthenticationException ex) {
             log.info("LDAP auth failed for user '{}': {}", username, ex.getMessage());
-            return AuthResult.failure("Invalid username or password.");
+            return AuthResult.ofFailure("Invalid username or password.");
         } catch (NamingException ex) {
             log.warn("LDAP connection error for user '{}': {}", username, ex.getMessage());
-            return AuthResult.failure("Unable to contact authentication server. Please try again.");
+            return AuthResult.ofFailure("Unable to contact authentication server. Please try again.");
         }
 
         try {
@@ -79,14 +79,14 @@ public class LdapAuthService {
                 if (!member) {
                     log.info("User '{}' authenticated but is not a member of '{}'",
                             username, requiredGroup);
-                    return AuthResult.failure("Access denied: your account is not authorised to use Patch Agent.");
+                    return AuthResult.ofFailure("Access denied: your account is not authorised to use Patch Agent.");
                 }
             }
             log.info("LDAP auth succeeded for user '{}'", username);
-            return AuthResult.success();
+            return AuthResult.ofSuccess();
         } catch (NamingException ex) {
             log.warn("LDAP group membership check failed for '{}': {}", username, ex.getMessage());
-            return AuthResult.failure("Group membership check failed. Please contact your administrator.");
+            return AuthResult.ofFailure("Group membership check failed. Please contact your administrator.");
         } finally {
             close(ctx);
         }
@@ -168,7 +168,7 @@ public class LdapAuthService {
     // ── Result type ──────────────────────────────────────────────────
 
     public record AuthResult(boolean success, String errorMessage) {
-        public static AuthResult success()            { return new AuthResult(true, null); }
-        public static AuthResult failure(String msg)  { return new AuthResult(false, msg); }
+        public static AuthResult ofSuccess()            { return new AuthResult(true, null); }
+        public static AuthResult ofFailure(String msg)  { return new AuthResult(false, msg); }
     }
 }
